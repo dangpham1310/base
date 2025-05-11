@@ -5,7 +5,6 @@ import re
 
 auth_bp = Blueprint('auth', __name__)
 
-# Đăng ký
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -44,9 +43,9 @@ def register():
 
     return jsonify({"message": "User registered successfully"}), 201
 
-# Đăng nhập
 @auth_bp.route('/login', methods=['POST'])
 def login():
+ 
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
@@ -56,13 +55,14 @@ def login():
     if user and user.check_password(password):
         # Tạo access token
         access_token = create_access_token(identity=user.email)
+        print(access_token)
         return jsonify({"access_token": access_token}), 200
 
     return jsonify({"message": "Invalid credentials"}), 401
 
-# Route yêu cầu xác thực JWT
 @auth_bp.route('/protected', methods=['GET'])
 @jwt_required()
 def protected():
+
     current_user = get_jwt_identity()
     return jsonify({"message": f"Welcome {current_user}!"}), 200

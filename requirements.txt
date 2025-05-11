@@ -1,0 +1,9 @@
+Flask
+flask_sqlalchemy
+flask_jwt_extended
+Pillow
+numpy
+flasgger
+psycopg2-binary
+flask_migrate
+redis

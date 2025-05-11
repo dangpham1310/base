@@ -1,0 +1,5 @@
+LOAD DATABASE
+     FROM sqlite:///home/tado/Desktop/DangPham/base/instance/app.db
+     INTO postgresql://tado:tado123@localhost:5432/tadodb
+
+ALTER SCHEMA 'main' RENAME TO 'public'; 
