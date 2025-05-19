@@ -4,10 +4,30 @@ from datetime import datetime
 import uuid
 from flask_jwt_extended import jwt_required, get_current_user
 from sqlalchemy import desc, asc
-
+from utils.redis_helper import check_license_plate_in_redis
+import requests
+from pathlib import Path
+from typing import Optional
 detected_object_bp = Blueprint('detected_object', __name__)
 
 # get all camera with admin
+
+def find_frame_path(
+    id_frame: str,
+    base_dir: Path = Path("/app/screens")
+    # base_dir: Path = Path("/home/tado/Desktop/TuanAn/Plate_app_TuanAn/screens")
+) -> Optional[Path]:
+    target_name = f"{id_frame}.jpg"
+    for day_folder in base_dir.iterdir():
+        if not day_folder.is_dir():
+            continue
+        for minute_folder in day_folder.iterdir():
+            if not minute_folder.is_dir():
+                continue
+            candidate = minute_folder / target_name
+            if candidate.exists():
+                return candidate.resolve()
+    return None
 
 
 @detected_object_bp.route('/data_detected/', methods=['GET'])
@@ -94,64 +114,84 @@ def get_data_detected():
             'details': str(e)
         }), 500
 
+#viết cho tôi hàm gửi telegram
+# Here is the token for bot QLNV @Quan_Ly_Nhan_Vien_bot:
+# 7910124964:AAGSO1rdFMMvtKxRviYxEo7iTcH2BQtP9WE
+
+
+def send_telegram_message(chat_id: int, license_plate: str, frame_id: str):
+    token = '7910124964:AAGSO1rdFMMvtKxRviYxEo7iTcH2BQtP9WE'
+    frame_path = find_frame_path(frame_id)  # Đảm bảo đường dẫn ảnh tồn tại
+    caption = f"Biển Số Xe {license_plate} đã được phát hiện."
+    
+    url = f'https://api.telegram.org/bot{token}/sendPhoto'
+    with open(frame_path, 'rb') as photo:
+        files = {'photo': photo}
+        data = {
+            'chat_id': chat_id,
+            'caption': caption,
+            'parse_mode': 'HTML'
+        }
+        response = requests.post(url, data=data, files=files)
+
+    if response.status_code == 200:
+        print('Photo sent successfully')
+    else:
+        print(f'Failed to send photo: {response.text}')
+
+
+
 
 @detected_object_bp.route('/data_detected/create', methods=['POST'])
 def create_data_detected():
-    try:
-        data = request.get_json()
-        print("Received data:", data)
 
-        required_fields = ['stream_id', 'frame_id', 'bbox', 'license_plate']
-
-        #check license plate in redis
+    data = request.get_json()
 
 
+    required_fields = ['stream_id', 'frame_id', 'bbox', 'license_plate']
+
+    camera = Camera.query.filter_by(stream_id=data["stream_id"]).first()
+
+    if not camera:
+        print("Invalid stream_id: ", data['stream_id'])
+        return jsonify({'error': 'Invalid stream_id'}), 422
+
+    # Convert bbox từ string thành list số nguyên
+    bbox_str = data['bbox'][0]  # Lấy string đầu tiên từ list
+    x, y, w, h = map(int, bbox_str.split(','))  # Convert thành x,y,w,h
+    
+    # Tính toán tọa độ cho crop (left, top, right, bottom)
+    bbox = [x, y, w,h ]
+    print("Original bbox (x,y,w,h):", [x, y, w, h])
 
 
-        camera = Camera.query.filter_by(stream_id=data["stream_id"]).first()
-        print("Found camera:", camera)
+    # Create new detected object
+    detected_object = DetectedObject(
+        id_camera=camera.id,
+        stream_id=data["stream_id"],
+        frame_id=data["frame_id"],
+        bbox=bbox,  # Lưu bbox dạng [left, top, right, bottom]
+        license_plate=data['license_plate']
+    )
 
-        if not camera:
-            return jsonify({'error': 'Invalid stream_id'}), 422
+    db.session.add(detected_object)
+    db.session.commit()
+    print("Đã add vào database")
 
-        # Convert bbox từ string thành list số nguyên
-        bbox_str = data['bbox'][0]  # Lấy string đầu tiên từ list
-        x, y, w, h = map(int, bbox_str.split(','))  # Convert thành x,y,w,h
-        
-        # Tính toán tọa độ cho crop (left, top, right, bottom)
-        bbox = [x, y, w,h ]
-        print("Original bbox (x,y,w,h):", [x, y, w, h])
+    if check_license_plate_in_redis(data['license_plate']):
+        print("License plate is in redis: ", data['license_plate'])
+        send_telegram_message(chat_id=-4646244350, license_plate=data['license_plate'], frame_id=data['frame_id'])
+        return jsonify({'error': 'License plate is in redis'}), 200
 
+    return jsonify({
+        'id': str(detected_object.id),
+        'stream_id': detected_object.stream_id,
+        'frame_id': detected_object.frame_id,
+        'bbox': detected_object.bbox,
+        'license_plate': detected_object.license_plate,
+        'time_created': detected_object.time_created.isoformat()
+    })
 
-        # Create new detected object
-        detected_object = DetectedObject(
-            id_camera=camera.id,
-            stream_id=data["stream_id"],
-            frame_id=data["frame_id"],
-            bbox=bbox,  # Lưu bbox dạng [left, top, right, bottom]
-            license_plate=data['license_plate']
-        )
-
-        db.session.add(detected_object)
-        db.session.commit()
-
-        # Return created object
-        return jsonify({
-            'id': str(detected_object.id),
-            'stream_id': detected_object.stream_id,
-            'frame_id': detected_object.frame_id,
-            'bbox': detected_object.bbox,
-            'license_plate': detected_object.license_plate,
-            'time_created': detected_object.time_created.isoformat()
-        })
-
-    except Exception as e:
-        print("Error creating record:", str(e))
-        db.session.rollback()
-        return jsonify({
-            'error': 'Đã xảy ra lỗi khi tạo bản ghi.',
-            'details': str(e)
-        }), 500
 
 @detected_object_bp.route('/data_detected/update/<string:id>', methods=['PUT'])
 @jwt_required()
@@ -233,6 +273,7 @@ def delete_data_detected():
         # Tạo query base
         query = DetectedObject.query.filter_by(deleted_at=None)
 
+
         # Lọc theo id
         if object_id:
             query = query.filter(DetectedObject.id == object_id)
@@ -280,9 +321,4 @@ def delete_data_detected():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
-
-
-
-
-
 

@@ -4,69 +4,12 @@ services:
   web:
     build: .
     image: api_tado
-    ports:
-      - 5000:5000
     environment:
       - FLASK_APP=app.py
-      - FLASK_ENV=development
+      - FLASK_ENV=developmen
     volumes:
+      - .:/app
       - /home/tado/Desktop/TuanAn/Plate_app_TuanAn/screens:/app/screens
       - /home/tado/Desktop/TuanAn/Plate_app_TuanAn/plates:/app/plates
     restart: always
-    links:
-      - postgres
-    depends_on:
-      - postgres
-  postgres:
-    image: postgres:latest
-    restart: always
-    environment:
-      POSTGRES_USER: tado
-      POSTGRES_PASSWORD: tado123
-      POSTGRES_DB: tadodb
-    ports:
-      - "5433:5432"
-    volumes:
-      - /home/tado/database:/var/lib/postgresql/data
 
-  grpc-read-frame:
-    image: grpc-read-frame:latest
-    container_name: grpc_read_frame
-    ports:
-      - "50051:50051"
-    networks:
-      - grpc-net
-
-  grpc-detector:
-    image: grpc-detector:latest
-    container_name: grpc_detector
-    ports:
-      - "50052:50052"
-    gpus: all
-    depends_on:
-      - grpc-read-frame
-    networks:
-      - grpc-net
-
-  grpc-ocr:
-    image: grpc-ocr:latest
-    container_name: grpc_ocr
-    ports:
-      - "50053:50053"
-    gpus: all
-    depends_on:
-      - grpc-detector
-    networks:
-      - grpc-net
-  sse-app:
-    build: .
-    container_name: flask-sse
-    ports:
-      - "5001:5001"
-    environment:
-      - FLASK_ENV=development
-
-networks:
-  grpc-net:
-    driver: bridge
-    

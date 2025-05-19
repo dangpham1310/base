@@ -72,16 +72,13 @@ def check_license_plate_in_redis(license_plate):
 
 def get_all_blacklist_from_redis():
     """Lấy tất cả các cặp key-value trong Redis"""
-    try:
-        result = []
-        for key in redis_client.scan_iter(f"{Config.REDIS_PREFIX}*"):
-            data = redis_client.get(key)
-            if data:
-                result.append({
-                    'key': key,
-                    'value': json.loads(data)
-                })
-        return result
-    except Exception as e:
-        print(f"Lỗi khi lấy dữ liệu từ Redis: {str(e)}")
-        return None 
+
+    result = []
+    for key in redis_client.scan_iter(f"{Config.REDIS_PREFIX}*"):
+        data = redis_client.get(key)
+        if data:
+            result.append({
+                'key': key,
+                'value': json.loads(data)
+            })
+    return result

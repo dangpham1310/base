@@ -74,7 +74,6 @@ class BlackList(db.Model):
 
 
 
-
 class WebHook(db.Model):
     __tablename__ = "web_hooks"
     id = db.Column(db.UUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -86,8 +85,7 @@ class WebHook(db.Model):
     deleted_at = db.Column(db.DateTime, nullable=True)
     
     
-    
-    
+
 
 class UserCamera(db.Model):
     __tablename__ = "user_camera"
@@ -95,11 +93,9 @@ class UserCamera(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     camera_id = db.Column(db.Integer, db.ForeignKey("cameras.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=utc7now, nullable=False)
-
     __table_args__ = (
         db.UniqueConstraint('user_id', 'camera_id', name='uix_user_camera'),
     )
-
     user = db.relationship("Users", backref=db.backref("user_cameras", lazy=True))
     camera = db.relationship("Camera", backref=db.backref("user_cameras", lazy=True))
 

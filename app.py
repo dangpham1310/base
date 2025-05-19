@@ -9,6 +9,7 @@ from models import db, Users
 from config import Config
 from flasgger import Swagger
 from routes.blacklist import blacklist_bp
+from routes.webhook import webhook_bp
 app = Flask(__name__)
 app.config.from_object(Config)
 
@@ -78,6 +79,7 @@ app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(camera_bp, url_prefix='/camera')
 app.register_blueprint(detected_object_bp, url_prefix='/detected_object')
 app.register_blueprint(blacklist_bp, url_prefix='/blacklist')
+app.register_blueprint(webhook_bp, url_prefix='/webhook')
 # Tạo database khi chạy ứng dụng
 with app.app_context():
     db.create_all()
@@ -107,4 +109,4 @@ def hello():
     return {"message": "Hello, World!"}
 
 if __name__ == '__main__':
-    app.run(debug=False,port=5000,host='0.0.0.0')
+    app.run(debug=True,port=5000,host='0.0.0.0')

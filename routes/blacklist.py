@@ -11,6 +11,11 @@ from utils.redis_helper import (
     check_license_plate_in_redis,
     get_all_blacklist_from_redis
 )
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 
 blacklist_bp = Blueprint('blacklist', __name__)
 
@@ -52,23 +57,20 @@ def reload_redis():
                     type: string
                     example: Lỗi khi load blacklist vào Redis
     """
-    try:
-        blacklist_items = BlackList.query.filter(BlackList.is_deleted == False).all()
-        if load_blacklist_to_redis(blacklist_items):
-            return jsonify({
-                "status": True,
-                "message": "Đã load lại blacklist vào Redis thành công"
-            }), 200
-        else:
-            return jsonify({
-                "status": False,
-                "message": "Lỗi khi load blacklist vào Redis"
-            }), 500
-    except Exception as e:
+
+    blacklist_items = BlackList.query.filter(BlackList.is_deleted == False).all()
+    logger.info(len(blacklist_items))
+    if load_blacklist_to_redis(blacklist_items):
+        return jsonify({
+            "status": True,
+            "message": "Đã load lại blacklist vào Redis thành công"
+        }), 200
+    else:
         return jsonify({
             "status": False,
-            "message": str(e)
+            "message": "Lỗi khi load blacklist vào Redis"
         }), 500
+
 
 @blacklist_bp.route('/add', methods=['POST'])
 @jwt_required()
@@ -598,24 +600,21 @@ def get_all_from_redis():
                     type: string
                     example: Lỗi khi lấy dữ liệu từ Redis
     """
-    try:
-        result = get_all_blacklist_from_redis()
-        if result is not None:
-            return jsonify({
-                "status": True,
-                "message": "Lấy dữ liệu từ Redis thành công",
-                "data": result
-            }), 200
-        else:
-            return jsonify({
-                "status": False,
-                "message": "Lỗi khi lấy dữ liệu từ Redis"
-            }), 500
-    except Exception as e:
+
+    result = get_all_blacklist_from_redis()
+    print(result)
+    if result is not None:
+        return jsonify({
+            "status": True,
+            "message": "Lấy dữ liệu từ Redis thành công",
+            "data": result
+        }), 200
+    else:
         return jsonify({
             "status": False,
-            "message": str(e)
+            "message": "Lỗi khi lấy dữ liệu từ Redis"
         }), 500
+
 
 
     

@@ -278,8 +278,83 @@ def enable_camera(stream_id):
 @camera_bp.route('/disable/<uuid:stream_id>', methods=['PATCH'])
 @jwt_required()
 def disable_camera(stream_id):
-  
-    camera = Camera.query.filter_by(stream_id=stream_id, deleted_at=None).first()
+    """
+    Tắt camera theo stream_id
+    ---
+    patch:
+      tags:
+        - Camera
+      summary: Tắt camera
+      description: |
+        Tắt camera theo stream_id được chỉ định.  
+        Yêu cầu xác thực bằng JWT Bearer Token.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: stream_id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID của camera cần tắt (UUID)
+      responses:
+        '200':
+          description: Thông tin camera sau khi tắt
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stream_id:
+                    type: string
+                    format: uuid
+                    example: "123e4567-e89b-12d3-a456-426614174000"
+                  stream_url:
+                    type: string
+                    example: "rtsp://camera.example.com/stream1"
+                  stream_name:
+                    type: string
+                    example: "Camera Khu A"
+                  created_at:
+                    type: string
+                    format: date-time
+                    example: "2024-03-20T10:30:00Z"
+                  updated_at:
+                    type: string
+                    format: date-time
+                    example: "2024-03-20T15:45:00Z"
+                  status:
+                    type: boolean
+                    example: false
+                  zone:
+                    type: string
+                    example: "Zone A"
+                  max_tracking_time:
+                    type: integer
+                    example: 30
+        '401':
+          description: Không có hoặc token không hợp lệ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                    example: Missing Authorization Header
+        '404':
+          description: Không tìm thấy camera
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Camera không tồn tại
+    """
+    camera = Camera.query.filter_by(stream_id=stream_id).first()
     if not camera:
         return jsonify({'error': 'Camera không tồn tại'}), 404
 
