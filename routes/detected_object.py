@@ -32,6 +32,131 @@ def find_frame_path(
 
 @detected_object_bp.route('/data_detected/', methods=['GET'])
 def get_data_detected():
+    """
+    Lấy danh sách các đối tượng đã phát hiện (filter/search)
+    ---
+    get:
+      tags:
+        - DetectedObject
+      summary: Lấy danh sách các đối tượng đã phát hiện với bộ lọc
+      description: |
+        Cho phép tìm kiếm và lọc danh sách các đối tượng đã được phát hiện (ví dụ: biển số xe) 
+        dựa trên nhiều tiêu chí như stream_id, khoảng thời gian, và nội dung biển số.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Số trang hiện tại để phân trang.
+        - in: query
+          name: page_size
+          schema:
+            type: integer
+            default: 10
+          description: Số lượng mục trên mỗi trang.
+        - in: query
+          name: stream_ids
+          schema:
+            type: string
+          description: Danh sách các stream_id (UUID), cách nhau bởi dấu phẩy (VD: "uuid1,uuid2").
+        - in: query
+          name: start_time
+          schema:
+            type: string
+            format: date-time
+          description: Thời gian bắt đầu tìm kiếm (ISO 8601, VD: "2024-03-20T10:00:00Z").
+        - in: query
+          name: end_time
+          schema:
+            type: string
+            format: date-time
+          description: Thời gian kết thúc tìm kiếm (ISO 8601, VD: "2024-03-20T18:00:00Z").
+        - in: query
+          name: license_plate
+          schema:
+            type: string
+          description: |
+            Biển số xe cần tìm. Hỗ trợ tìm kiếm chứa ký tự (không phân biệt hoa thường). 
+            Ví dụ: "59A123" hoặc "%A123%" để tìm các biển số chứa "A123".
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+          description: Thứ tự sắp xếp theo thời gian tạo (`time_created`).
+      responses:
+        '200':
+          description: Thành công. Trả về danh sách các đối tượng khớp.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    description: Tổng số mục tìm được.
+                  page:
+                    type: integer
+                    description: Trang hiện tại.
+                  page_size:
+                    type: integer
+                    description: Số mục trên trang.
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                          description: ID của đối tượng phát hiện.
+                        stream_id:
+                          type: string
+                          format: uuid
+                          description: ID của camera stream.
+                        frame_id:
+                          type: string
+                          format: uuid
+                          description: ID của khung hình chứa đối tượng.
+                        license_plate:
+                          type: string
+                          description: Biển số xe đã phát hiện.
+                        time_created:
+                          type: string
+                          format: date-time
+                          description: Thời gian phát hiện đối tượng.
+                        bbox:
+                          type: array
+                          items:
+                            type: integer
+                          description: Tọa độ bounding box của đối tượng [x, y, width, height].
+                          example: [100, 150, 50, 30]
+        '400':
+          description: Lỗi do định dạng tham số không hợp lệ (ví dụ: start_time, end_time).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Định dạng start_time không hợp lệ. Sử dụng định dạng ISO (VD: 2024-03-20T10:00:00Z)"
+        '500':
+          description: Lỗi server.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Đã xảy ra lỗi trong quá trình xử lý yêu cầu."
+                  details:
+                    type: string
+                    example: "<chi tiết lỗi cụ thể>"
+    """
     try:
         # Lấy các tham số từ query string
         page = request.args.get('page', 1, type=int)

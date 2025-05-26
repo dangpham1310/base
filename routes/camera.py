@@ -10,7 +10,6 @@ from typing import Optional
 from PIL import Image
 import numpy as np
 
-
 def find_frame_path(
     id_frame: str,
     base_dir: Path = Path("/app/screens")
@@ -387,7 +386,7 @@ def get_image(frame_uuid):
       tags:
         - Camera
       summary: Lấy ảnh từ frame_uuid
-      description: Trả về ảnh gốc hoặc ảnh đã được cắt (crop) dựa vào bbox của DetectedObject
+      description: Trả về ảnh gốc, ảnh đã được cắt (crop), hoặc ảnh thumbnail.
       parameters:
         - in: path
           name: frame_uuid
@@ -402,7 +401,14 @@ def get_image(frame_uuid):
           schema:
             type: boolean
             default: false
-          description: Cắt ảnh theo bbox từ DetectedObject nếu true
+          description: Cắt ảnh theo bbox từ DetectedObject nếu true.
+        - in: query
+          name: thumbnail
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Trả về ảnh thumbnail (150x150) nếu true. Nếu crop=true, ảnh sẽ được crop trước khi tạo thumbnail.
       responses:
         '200':
           description: Trả về ảnh thành công
@@ -412,7 +418,7 @@ def get_image(frame_uuid):
                 type: string
                 format: binary
         '404':
-          description: Không tìm thấy ảnh hoặc DetectedObject
+          description: Không tìm thấy ảnh hoặc DetectedObject (nếu crop=true)
           content:
             application/json:
               schema:
@@ -431,60 +437,44 @@ def get_image(frame_uuid):
                   error:
                     type: string
     """
-   
-    # Tìm đường dẫn ảnh
-    frame_path = find_frame_path(frame_uuid)
-    print(frame_path)
-    if not frame_path or not os.path.exists(frame_path):
-        return jsonify({'error': 'Image not found'}), 404
-
-    # Đọc ảnh bằng PIL
-    img = Image.open(frame_path)
     
-    # Kiểm tra nếu cần crop
-    crop = request.args.get('crop', 'false').lower() == 'true'
-    if crop:
-        # Tìm DetectedObject theo frame_id
-        # detected_obj = DetectedObject.query.filter_by(frame_id=frame_uuid).first()
-        # if not detected_obj or not detected_obj.bbox:
-        #     return jsonify({'error': 'DetectedObject hoặc bbox không tìm thấy'}), 404
-            
-        # # Lấy bbox từ DetectedObject và chuyển về list
-        # bbox = detected_obj.bbox
-        # print("bbox: ", bbox)
-        
-        # # bbox là x y x y
-        # x1, y1, x2, y2 = bbox
-        # img = img.crop((x1, y1, x2, y2))
-        frame_crop_path = find_frame_crop(frame_uuid)
-        if not frame_crop_path or not os.path.exists(frame_crop_path):
-            return jsonify({'error': 'Image not found'}), 404
-        img = Image.open(frame_crop_path)
+    THUMBNAIL_SIZE = (300, 170)
+
+    # Kiểm tra tham số crop và thumbnail
+    should_crop = request.args.get('crop', 'false').lower() == 'true'
+    should_thumbnail = request.args.get('thumbnail', 'false').lower() == 'true'
+
+    img_path = None
+    if should_crop:
+        img_path = find_frame_crop(frame_uuid)
+    else:
+        img_path = find_frame_path(frame_uuid)
+
+    if not img_path or not os.path.exists(img_path):
+        error_message = 'Cropped image not found' if should_crop else 'Image not found'
+        return jsonify({'error': error_message}), 404
+
+    try:
+        img = Image.open(img_path)
+
+        if should_thumbnail:
+
+            img.thumbnail(THUMBNAIL_SIZE)
 
         img_byte_arr = BytesIO()
         img.save(img_byte_arr, format='JPEG')
         img_byte_arr.seek(0)
         
-        # Trả về ảnh
         return send_file(
             img_byte_arr,
             mimetype='image/jpeg',
             as_attachment=False,
             download_name=f"{frame_uuid}.jpg"
         )
-    
-    # Chuyển ảnh sang bytes
-    img_byte_arr = BytesIO()
-    img.save(img_byte_arr, format='JPEG')
-    img_byte_arr.seek(0)
-    
-    # Trả về ảnh
-    return send_file(
-        img_byte_arr,
-        mimetype='image/jpeg',
-        as_attachment=False,
-        download_name=f"{frame_uuid}.jpg"
-    )
+    except Exception as e:
+        # Log the exception for debugging purposes
+        print(f"Error processing image {frame_uuid}: {e}")
+        return jsonify({'error': f'Error processing image: {str(e)}'}), 500
 
 
 

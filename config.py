@@ -6,7 +6,7 @@ class Config:
     JWT_SECRET_KEY = 'your-jwt-secret-key'  # Thêm khóa bí mật cho JWT
     
     # Redis Configuration
-    REDIS_HOST = 'localhost'
+    REDIS_HOST = 'redishost'
     REDIS_PORT = 6380
     REDIS_DB = 0
     REDIS_PREFIX = 'blacklist:'

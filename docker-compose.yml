@@ -3,7 +3,7 @@ version: '3.3'
 services:
   web:
     build: .
-    image: api_tado
+    image: harbor.tandoan.asia/license_plate/api_tado:latest
     environment:
       - FLASK_APP=app.py
       - FLASK_ENV=developmen

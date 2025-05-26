@@ -1,7 +1,6 @@
-import redis
 from config import Config
 import json
-
+import redis
 # Khởi tạo Redis connection
 redis_client = redis.Redis(
     host=Config.REDIS_HOST,
